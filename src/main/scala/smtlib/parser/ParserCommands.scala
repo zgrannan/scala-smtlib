@@ -22,142 +22,147 @@ trait ParserCommands { this: ParserCommon with ParserTerms =>
     Script(cmds.toList)
   }
 
-  protected def parseCommandWithoutParens: Command = nextToken().kind match {
-    case Tokens.Assert => {
-      Assert(parseTerm)
-    }
-    case Tokens.CheckSat => CheckSat()
-    case Tokens.CheckSatAssuming => {
-      val props = parseMany(() => parsePropLit)
-      CheckSatAssuming(props)
-    }
+  protected def parseCommandWithoutParens: Command = {
+    val token = nextToken()
+    token.kind match {
+      case Tokens.Assert => {
+        Assert(parseTerm)
+      }
+      case Tokens.CheckSat => CheckSat()
+      case Tokens.CheckSatAssuming => {
+        val props = parseMany(() => parsePropLit)
+        CheckSatAssuming(props)
+      }
 
-    case Tokens.DeclareConst => {
-      val name = parseSymbol
-      val sort = parseSort
-      DeclareConst(name, sort)
-    }
-    case Tokens.DeclareFun => {
-      val sym = parseSymbol
+      case Tokens.DeclareConst => {
+        val name = parseSymbol
+        val sort = parseSort
+        DeclareConst(name, sort)
+      }
+      case Tokens.DeclareFun => {
+        val sym = parseSymbol
 
-      val params = new ListBuffer[Sort]
-      eat(Tokens.OParen)
-      while(peekToken.kind != Tokens.CParen)
-        params.append(parseSort)
-      eat(Tokens.CParen)
+        val params = new ListBuffer[Sort]
+        eat(Tokens.OParen)
+        while(peekToken.kind != Tokens.CParen)
+          params.append(parseSort)
+        eat(Tokens.CParen)
 
-      val sort = parseSort
-      DeclareFun(sym, params.toList, sort)
-    }
-    case Tokens.DeclareSort => {
-      val sym = parseSymbol
-      val arity = parseNumeral
-      DeclareSort(sym, arity.value.toInt)
-    }
+        val sort = parseSort
+        DeclareFun(sym, params.toList, sort)
+      }
+      case Tokens.DeclareSort => {
+        val sym = parseSymbol
+        val arity = parseNumeral
+        DeclareSort(sym, arity.value.toInt)
+      }
 
-    case Tokens.DefineFun => {
-      val funDef = parseFunDef
-      DefineFun(funDef)
-    }
-    case Tokens.DefineFunRec => {
-      val funDef = parseFunDef
-      DefineFunRec(funDef)
-    }
-    case Tokens.DefineFunsRec => {
-      val (funDef, funDefs) = parseOneOrMore(() => parseWithin(Tokens.OParen, Tokens.CParen)(() => parseFunDec))
-      val (body, bodies) = parseOneOrMore(() => parseTerm)
-      assert(funDefs.size == bodies.size)
-      DefineFunsRec(funDef +: funDefs, body +: bodies)
-    }
-    case Tokens.DefineSort => {
-      val sym = parseSymbol
+      case Tokens.DefineFun => {
+        val funDef = parseFunDef
+        DefineFun(funDef)
+      }
+      case Tokens.DefineFunRec => {
+        val funDef = parseFunDef
+        DefineFunRec(funDef)
+      }
+      case Tokens.DefineFunsRec => {
+        val (funDef, funDefs) = parseOneOrMore(() => parseWithin(Tokens.OParen, Tokens.CParen)(() => parseFunDec))
+        val (body, bodies) = parseOneOrMore(() => parseTerm)
+        assert(funDefs.size == bodies.size)
+        DefineFunsRec(funDef +: funDefs, body +: bodies)
+      }
+      case Tokens.DefineSort => {
+        val sym = parseSymbol
 
-      val vars = new ListBuffer[SSymbol]
-      eat(Tokens.OParen)
-      while(peekToken.kind != Tokens.CParen)
-        vars.append(parseSymbol)
-      eat(Tokens.CParen)
+        val vars = new ListBuffer[SSymbol]
+        eat(Tokens.OParen)
+        while(peekToken.kind != Tokens.CParen)
+          vars.append(parseSymbol)
+        eat(Tokens.CParen)
 
-      val sort = parseSort
-      DefineSort(sym, vars.toList, sort)
-    }
+        val sort = parseSort
+        DefineSort(sym, vars.toList, sort)
+      }
 
-    case Tokens.Echo => {
-      val value = parseString
-      Echo(value)
-    }
-    case Tokens.Exit => Exit()
+      case Tokens.Echo => {
+        val value = parseString
+        Echo(value)
+      }
+      case Tokens.Exit => Exit()
 
-    case Tokens.GetAssertions => GetAssertions()
-    case Tokens.GetAssignment => GetAssignment()
+      case Tokens.GetAssertions => GetAssertions()
+      case Tokens.GetAssignment => GetAssignment()
 
-    case Tokens.GetInfo => {
-      val infoFlag = parseInfoFlag
-      GetInfo(infoFlag)
-    }
+      case Tokens.GetInfo => {
+        val infoFlag = parseInfoFlag
+        GetInfo(infoFlag)
+      }
 
-    case Tokens.GetModel => GetModel()
+      case Tokens.GetModel => GetModel()
 
-    case Tokens.GetOption => {
-      val keyword = parseKeyword
-      GetOption(keyword)
-    }
+      case Tokens.GetOption => {
+        val keyword = parseKeyword
+        GetOption(keyword)
+      }
 
-    case Tokens.GetProof => GetProof()
-    case Tokens.GetUnsatAssumptions => GetUnsatAssumptions()
-    case Tokens.GetUnsatCore => GetUnsatCore()
+      case Tokens.GetProof => GetProof()
+      case Tokens.GetUnsatAssumptions => GetUnsatAssumptions()
+      case Tokens.GetUnsatCore => GetUnsatCore()
 
-    case Tokens.GetValue => {
-      eat(Tokens.OParen)
-      val ts = new ListBuffer[Term]
-      while(peekToken.kind != Tokens.CParen)
-        ts.append(parseTerm)
-      eat(Tokens.CParen)
-      GetValue(ts.head, ts.tail.toList)
-    }
+      case Tokens.GetValue => {
+        eat(Tokens.OParen)
+        val ts = new ListBuffer[Term]
+        while(peekToken.kind != Tokens.CParen)
+          ts.append(parseTerm)
+        eat(Tokens.CParen)
+        GetValue(ts.head, ts.tail.toList)
+      }
 
-    case Tokens.Pop => {
-      val n = parseNumeral
-      Pop(n.value.toInt)
-    }
-    case Tokens.Push => {
-      val n = parseNumeral
-      Push(n.value.toInt)
-    }
+      case Tokens.Pop => {
+        val n = parseNumeral
+        Pop(n.value.toInt)
+      }
+      case Tokens.Push => {
+        val n = parseNumeral
+        Push(n.value.toInt)
+      }
 
-    case Tokens.Reset => Reset()
-    case Tokens.ResetAssertions => ResetAssertions()
+      case Tokens.Reset => Reset()
+      case Tokens.ResetAssertions => ResetAssertions()
 
-    case Tokens.SetInfo => {
-      SetInfo(parseAttribute)
-    }
+      case Tokens.SetInfo => {
+        SetInfo(parseAttribute)
+      }
 
-    case Tokens.SetLogic => {
-      val logicSymbol: SSymbol = parseSymbol
-      val logic: Logic = 
-        Logic.standardLogicFromString.lift(logicSymbol.name).getOrElse({
-          logicSymbol match {
-            case SSymbol("ALL") => ALL()
-            case _ => NonStandardLogic(logicSymbol)
-          }
+      case Tokens.SetLogic => {
+        val logicSymbol: SSymbol = parseSymbol
+        val logic: Logic =
+          Logic.standardLogicFromString.lift(logicSymbol.name).getOrElse({
+            logicSymbol match {
+              case SSymbol("ALL") => ALL()
+              case _ => NonStandardLogic(logicSymbol)
+            }
+          })
+        SetLogic(logic.setPos(logicSymbol))
+      }
+      case Tokens.SetOption => {
+        SetOption(parseOption)
+      }
+
+      case Tokens.DeclareDatatypes => {
+
+        val sorts = parseMany(() => parseDatatypeSorts)
+        val constructors = parseMany(() => parseMany(() => parseConstructor))
+
+        DeclareDatatypes(sorts.zip(constructors).map { case ((sort, arity), constructors) =>
+          (sort, arity, constructors)
         })
-      SetLogic(logic.setPos(logicSymbol))
-    }
-    case Tokens.SetOption => {
-      SetOption(parseOption)
-    }
+      }
 
-    case Tokens.DeclareDatatypes => {
-      eat(Tokens.OParen)
-      eat(Tokens.CParen)
-
-      val datatypes = parseMany(() => parseDatatypes)
-
-      DeclareDatatypes(datatypes)
-    }
-
-    case kind => {
-      throw new UnknownCommandException(kind)
+      case kind => {
+        println(token)
+        throw new UnknownCommandException(kind)
+      }
     }
   }
 
@@ -211,15 +216,11 @@ trait ParserCommands { this: ParserCommon with ParserTerms =>
     FunDef(name, sortedVars, sort, body)
   }
 
-  def parseDatatypes: (SSymbol, Seq[Constructor]) = {
+  def parseDatatypeSorts: (SSymbol, SNumeral) = {
     eat(Tokens.OParen)
-    val name = parseSymbol
-    val constructors = new ListBuffer[Constructor]
-    while(peekToken.kind != Tokens.CParen) {
-      constructors.append(parseConstructor)
-    }
+    val result = parseSymbol -> parseNumeral
     eat(Tokens.CParen)
-    (name, constructors.toSeq)
+    result
   }
 
   def parseConstructor: Constructor = {

@@ -202,27 +202,32 @@ object Commands {
     def transform(tt: TreeTransformer)(context: tt.C): (Command, tt.R)
   }
 
-  //non standard declare-datatypes (no support for parametric types)
-  case class DeclareDatatypes(datatypes: Seq[(SSymbol, Seq[Constructor])]) extends CommandExtension {
+  case class DeclareDatatypes(datatypes: Seq[(SSymbol, SNumeral, Seq[Constructor])]) extends CommandExtension {
     override def print(ctx: PrintingContext): Unit = {
-      ctx.print("(declare-datatypes () ")
-      ctx.printNary(datatypes, (datatype: (SSymbol, Seq[Constructor])) => {
+      ctx.print("(declare-datatypes")
+      ctx.printNary(datatypes, (dt: (SSymbol, SNumeral, Seq[Constructor])) => {
         ctx.print("(")
-        ctx.print(datatype._1.name)
-        if (datatype._2.nonEmpty) ctx.printNary(datatype._2, (constructor: Constructor) => {
-          ctx.print("(")
-          ctx.print(constructor.sym.name)
-          if (constructor.fields.nonEmpty) ctx.printNary(constructor.fields, (field: (SSymbol, Sort)) => {
-            ctx.print("(")
-            ctx.print(field._1.name)
-            ctx.print(" ")
-            ctx.print(field._2)
-            ctx.print(")")
-          }, " ", " ", "")
-          ctx.print(")")
-        }, " ", " ", "")
+        ctx.print(dt._1)
+        ctx.print(" ")
+        ctx.print(dt._2)
         ctx.print(")")
-      }, "(", " ", "))\n")
+      },"(", " ", ")")
+      ctx.printNary(datatypes, (dt: (SSymbol, SNumeral, Seq[Constructor])) => {
+        ctx.printNary(dt._3, (c: Constructor) => {
+          ctx.print("(")
+          ctx.print(c.sym)
+          ctx.print(" ")
+            ctx.printNary(c.fields, (f: (SSymbol, Sort)) => {
+              ctx.print("(")
+              ctx.print(f._1)
+              ctx.print(" ")
+              ctx.print(f._2)
+              ctx.print(")")
+            }, "", " ", "")
+          ctx.print(")")
+        }, "(", " ", ")")
+      },"(", " ", ")")
+      ctx.print(")")
     }
 
     override def transform(tt: TreeTransformer)(context: tt.C): (Command, tt.R) = {
@@ -231,10 +236,11 @@ object Commands {
     }
 
     private def transformDatatype(tt: TreeTransformer)
-                  (datatype: (SSymbol, Seq[Constructor]), context: tt.C)
-        : ((SSymbol, Seq[Constructor]), Seq[tt.R]) = {
+                  (datatype: (SSymbol, SNumeral, Seq[Constructor]), context: tt.C)
+        : ((SSymbol, SNumeral, Seq[Constructor]), Seq[tt.R]) = {
       val (nameNew, nameRes) = tt.transformSymbol(datatype._1, context)
-      val (constrsNew, constrsRes) = datatype._2.map(constr => {
+      val (_, arityRes) = tt.transform(datatype._2, context)
+      val (constrsNew, constrsRes) = datatype._3.map(constr => {
         val (ns, rs) = tt.transformSymbol(constr.sym, context)
         val (nfs, rf) = constr.fields.map(field => {
           val (id, sort) = field
@@ -246,8 +252,8 @@ object Commands {
         val newConstructor = Constructor(ns, nfs)
         (newConstructor, rs +: rf.flatten)
       }).unzip
-      val newDatatype = (nameNew, constrsNew)
-      (newDatatype, nameRes +: constrsRes.flatten)
+      val newDatatype = (nameNew, datatype._2, constrsNew)
+      (newDatatype, nameRes +: arityRes +: constrsRes.flatten)
     }
   }
 

@@ -6,6 +6,8 @@ import smtlib.trees.Terms._
 import smtlib.trees.Commands._
 import smtlib.common.Position
 
+import scala.collection.mutable.ListBuffer
+
 object Tokens {
   import LT.ReservedWord
 
@@ -219,8 +221,19 @@ class Parser(lexer: Lexer) extends parser.Parser(lexer) {
       eat(LT.DeclareDatatypes)
       val tps = parseMany(() => parseSymbol)
       val datatypes = parseMany(() => parseDatatypes)
-      DeclareDatatypesPar(tps, datatypes)
+      DeclareDatatypesTip(tps, datatypes)
 
     case _ => super.parseCommandWithoutParens
+  }
+
+  def parseDatatypes: (SSymbol, Seq[Constructor]) = {
+      eat(LT.OParen)
+      val name = parseSymbol
+      val constructors = new ListBuffer[Constructor]
+      while(peekToken.kind != LT.CParen) {
+        constructors.append(parseConstructor)
+      }
+      eat(LT.CParen)
+      name -> constructors.toSeq
   }
 }

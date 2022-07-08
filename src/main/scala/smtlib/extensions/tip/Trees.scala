@@ -144,7 +144,7 @@ object Commands {
     def transform(tt: TreeTransformer)(context: tt.C): (Command, tt.R) = ???
   }
 
-  case class DeclareDatatypesPar(tps: Seq[SSymbol], datatypes: Seq[(SSymbol, Seq[Constructor])]) extends CommandExtension {
+  case class DeclareDatatypesTip(tps: Seq[SSymbol], datatypes: Seq[(SSymbol, Seq[Constructor])]) extends CommandExtension {
     def print(ctx: PrintingContext): Unit = {
       ctx.print("(declare-datatypes ")
       ctx.printNary(tps, "(", " ", ") ")

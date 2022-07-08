@@ -10,22 +10,28 @@ import trees.Terms._
 import trees.TreesOps
 
 import java.io.StringReader
-
 import org.scalatest.concurrent.TimeLimits
 import org.scalatest.funsuite.AnyFunSuite
+import smtlib.extensions.tip.Commands.DeclareDatatypesTip
+import smtlib.extensions.z3.Terms.DefineConst
 
+import scala.collection.mutable.ListBuffer
 import scala.language.implicitConversions
 
 class CommandsParserTests extends AnyFunSuite with TimeLimits {
 
   override def suiteName = "SMT-LIB commands Parser suite"
 
-
   //parse the string for a single command and asserts no more commands
-  private def parseUniqueCmd(str: String): Command = {
+  private def parseUniqueCmd(str: String, z3: Boolean = false): Command = {
     val reader = new StringReader(str)
-    val lexer = new Lexer(reader)
-    val parser = new Parser(lexer)
+    val (lexer, parser) = if(z3) {
+      val lex = new extensions.z3.Lexer(reader)
+      lex -> new extensions.z3.Parser(lex)
+    } else {
+      val lex = new Lexer(reader)
+      lex -> new Parser(lex)
+    }
     val cmd = parser.parseCommand
     assert(lexer.nextToken == null)
     assertEachNodeHasPos(cmd)
@@ -42,10 +48,10 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
 
 
   test("Parsing assert commands") {
-    assert(parseUniqueCmd("(assert true)") === 
+    assert(parseUniqueCmd("(assert true)") ===
            Assert(QualifiedIdentifier("true")))
-    assert(parseUniqueCmd("(assert (p 42))") === 
-           Assert(FunctionApplication(QualifiedIdentifier("p"), 
+    assert(parseUniqueCmd("(assert (p 42))") ===
+           Assert(FunctionApplication(QualifiedIdentifier("p"),
                   Seq(SNumeral(42)))))
   }
 
@@ -60,12 +66,12 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
   }
 
   test("Parsing check-sat-assuming commands") {
-    assert(parseUniqueCmd("(check-sat-assuming (a b c))") === 
+    assert(parseUniqueCmd("(check-sat-assuming (a b c))") ===
            CheckSatAssuming(Seq(
              PropLiteral("a", true),
              PropLiteral("b", true),
              PropLiteral("c", true))))
-    assert(parseUniqueCmd("(check-sat-assuming ((not a) b (not c)))") === 
+    assert(parseUniqueCmd("(check-sat-assuming ((not a) b (not c)))") ===
            CheckSatAssuming(Seq(
              PropLiteral("a", false),
              PropLiteral("b", true),
@@ -112,7 +118,7 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
            DefineFunRec(FunDef("f", Seq(SortedVar("a", Sort("A"))), Sort("B"),
                         FunctionApplication(QualifiedIdentifier("f"), Seq(QualifiedIdentifier("a"))))))
     assert(parseUniqueCmd("(define-fun-rec f ((a A)) A (f a))") ===
-           DefineFunRec(FunDef("f", Seq(SortedVar("a", Sort("A"))), Sort("A"), 
+           DefineFunRec(FunDef("f", Seq(SortedVar("a", Sort("A"))), Sort("A"),
                         FunctionApplication(QualifiedIdentifier("f"), Seq(QualifiedIdentifier("a"))))))
 
   }
@@ -136,8 +142,8 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
     assert(parseUniqueCmd("(define-sort A () B)") ===
            DefineSort("A", Seq(), Sort("B")))
     assert(parseUniqueCmd("(define-sort A (B C) (Array B C))") ===
-           DefineSort("A", Seq("B", "C"), 
-                      Sort(Identifier("Array"), 
+           DefineSort("A", Seq("B", "C"),
+                      Sort(Identifier("Array"),
                            Seq(Sort("B"), Sort("C")))))
   }
 
@@ -252,14 +258,14 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
   }
 
   test("Parsing non standard set-logic commands") {
-    assert(parseUniqueCmd("(set-logic UNIQUE_LOGIC)") === 
+    assert(parseUniqueCmd("(set-logic UNIQUE_LOGIC)") ===
       SetLogic(NonStandardLogic(SSymbol("UNIQUE_LOGIC"))))
-    assert(parseUniqueCmd("(set-logic MY_COOL_LOGIC)") === 
+    assert(parseUniqueCmd("(set-logic MY_COOL_LOGIC)") ===
       SetLogic(NonStandardLogic(SSymbol("MY_COOL_LOGIC"))))
   }
 
   test("Parsing set-option command") {
-    assert(parseUniqueCmd("""(set-option :diagnostic-output-channel "toto")""") === 
+    assert(parseUniqueCmd("""(set-option :diagnostic-output-channel "toto")""") ===
 
                           SetOption(DiagnosticOutputChannel("toto")))
     assert(parseUniqueCmd("(set-option :global-declarations true)") === SetOption(GlobalDeclarations(true)))
@@ -287,7 +293,7 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
     assert(parseUniqueCmd("(set-option :random-seed 42)") === SetOption(RandomSeed(42)))
     assert(parseUniqueCmd("(set-option :random-seed 12)") === SetOption(RandomSeed(12)))
 
-    assert(parseUniqueCmd("""(set-option :regular-output-channel "test")""") === 
+    assert(parseUniqueCmd("""(set-option :regular-output-channel "test")""") ===
                           SetOption(RegularOutputChannel("test")))
 
     assert(parseUniqueCmd("(set-option :reproducible-resource-limit 4)") === SetOption(ReproducibleResourceLimit(4)))
@@ -323,17 +329,59 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
   }
 
 
-  test("Parsing declare-datatypes commands") {
+  test("Parsing declare-datatypes command") {
     assert(parseUniqueCmd(
-      "(declare-datatypes () ( (A (A1 (a1 Int) (a2 A)) (A2)) ))") ===
+      "(declare-datatypes ((Color 0)) (( (red) (green) (blue) )))"
+      ) ===
       DeclareDatatypes(Seq(
-        (SSymbol("A"), Seq(Constructor("A1", 
-                            Seq((SSymbol("a1"), Sort("Int")), (SSymbol("a2"), Sort("A")))),
-                           Constructor("A2", Seq())
-                          ))
+        (
+          SSymbol("Color"),
+          SNumeral(0),
+          Seq(
+            Constructor("red", Seq()),
+            Constructor("green", Seq()),
+            Constructor("blue", Seq()),
+          )
       ))
-    )
+    ))
+  }
 
+  test("Parsing declare-datatypes command(2)") {
+    assert(parseUniqueCmd(
+      "(declare-datatypes ((IntList 0)) (((empty) (insert (head Int) (tail IntList)) )))"
+    ) ===
+      DeclareDatatypes(Seq(
+        (
+          SSymbol("IntList"),
+          SNumeral(0),
+          Seq(
+            Constructor("empty", Seq()),
+            Constructor("insert", Seq(
+              SSymbol("head") -> Sort("Int"),
+              SSymbol("tail") -> Sort("IntList")
+            )),
+          )
+        ))
+      ))
+  }
+
+  test("Parsing define-const (z3)") {
+    assert(
+      parseUniqueCmd("(define-const $Perm.write $Perm 1)", z3 = true) ===
+      DefineConst(SSymbol("$Perm.write"), Sort("$Perm"), SNumeral(1))
+    )
+  }
+
+  test("Parsing push (z3)") {
+    assert(
+      parseUniqueCmd("(push)", z3 = true) === Push(1)
+    )
+  }
+
+  test("Parsing pop (z3)") {
+    assert(
+      parseUniqueCmd("(pop)", z3 = true) === Pop(1)
+    )
   }
 
   test("Commands with terms have correct positions") {
