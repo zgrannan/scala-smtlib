@@ -252,6 +252,17 @@ trait ParserCommon {
     }
   }
 
+  def parseDataTypeType: DataTypeType = {
+    val symbol = parseSymbol
+    peekToken match {
+      case t@Tokens.NumeralLit(n) =>
+        eat(t)
+        DataTypeType(symbol, Some(n.toInt))
+      case _ =>
+        DataTypeType(symbol, None)
+    }
+  }
+
   def parseSymbol: SSymbol = {
     nextToken() match {
       case t@Tokens.SymbolLit(s) => {

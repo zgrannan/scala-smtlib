@@ -211,15 +211,15 @@ trait ParserCommands { this: ParserCommon with ParserTerms =>
     FunDef(name, sortedVars, sort, body)
   }
 
-  def parseDatatypes: (SSymbol, Seq[Constructor]) = {
+  def parseDatatypes: (DataTypeType, Seq[Constructor]) = {
     eat(Tokens.OParen)
-    val name = parseSymbol
+    val dataTypeType = parseDataTypeType
     val constructors = new ListBuffer[Constructor]
     while(peekToken.kind != Tokens.CParen) {
       constructors.append(parseConstructor)
     }
     eat(Tokens.CParen)
-    (name, constructors.toSeq)
+    (dataTypeType, constructors.toSeq)
   }
 
   def parseConstructor: Constructor = {

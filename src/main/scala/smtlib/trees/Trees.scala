@@ -74,6 +74,7 @@ object Terms {
    */
   sealed trait AttributeValue extends SExpr
 
+  case class DataTypeType(name: SSymbol, arity: Option[Int])
   case class SortedVar(name: SSymbol, sort: Sort) extends Tree with Positioned
   case class VarBinding(name: SSymbol, term: Term) extends Tree with Positioned
 
@@ -202,11 +203,11 @@ object Commands {
     def transform(tt: TreeTransformer)(context: tt.C): (Command, tt.R)
   }
 
-  //non standard declare-datatypes (no support for parametric types)
-  case class DeclareDatatypes(datatypes: Seq[(SSymbol, Seq[Constructor])]) extends CommandExtension {
+  //non standard declare-datatypes
+  case class DeclareDatatypes(datatypes: Seq[(DataTypeType, Seq[Constructor])]) extends CommandExtension {
     override def print(ctx: PrintingContext): Unit = {
       ctx.print("(declare-datatypes () ")
-      ctx.printNary(datatypes, (datatype: (SSymbol, Seq[Constructor])) => {
+      ctx.printNary(datatypes, (datatype: (DataTypeType, Seq[Constructor])) => {
         ctx.print("(")
         ctx.print(datatype._1.name)
         if (datatype._2.nonEmpty) ctx.printNary(datatype._2, (constructor: Constructor) => {
@@ -231,9 +232,9 @@ object Commands {
     }
 
     private def transformDatatype(tt: TreeTransformer)
-                  (datatype: (SSymbol, Seq[Constructor]), context: tt.C)
-        : ((SSymbol, Seq[Constructor]), Seq[tt.R]) = {
-      val (nameNew, nameRes) = tt.transformSymbol(datatype._1, context)
+                  (datatype: (DataTypeType, Seq[Constructor]), context: tt.C)
+        : ((DataTypeType, Seq[Constructor]), Seq[tt.R]) = {
+      val (nameNew, nameRes) = tt.transformSymbol(datatype._1.name, context)
       val (constrsNew, constrsRes) = datatype._2.map(constr => {
         val (ns, rs) = tt.transformSymbol(constr.sym, context)
         val (nfs, rf) = constr.fields.map(field => {
@@ -246,7 +247,7 @@ object Commands {
         val newConstructor = Constructor(ns, nfs)
         (newConstructor, rs +: rf.flatten)
       }).unzip
-      val newDatatype = (nameNew, constrsNew)
+      val newDatatype = (DataTypeType(nameNew, datatype._1.arity), constrsNew)
       (newDatatype, nameRes +: constrsRes.flatten)
     }
   }

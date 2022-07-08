@@ -328,7 +328,7 @@ What are you up to man?"""))
 
   def testDeclareDatatypes(implicit printer: Printer): Unit = {
     checkCommand(DeclareDatatypes(Seq(
-      SSymbol("A") -> Seq(Constructor(SSymbol("A1"), 
+      DataTypeType(SSymbol("A"), None) -> Seq(Constructor(SSymbol("A1"),
                                       Seq(SSymbol("a1a") -> Sort("A"), SSymbol("a1b") -> Sort("A"))),
                           Constructor(SSymbol("A2"), 
                                       Seq(SSymbol("a2a") -> Sort("A"), SSymbol("a2b") -> Sort("A"))))

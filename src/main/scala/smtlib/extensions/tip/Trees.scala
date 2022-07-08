@@ -144,11 +144,11 @@ object Commands {
     def transform(tt: TreeTransformer)(context: tt.C): (Command, tt.R) = ???
   }
 
-  case class DeclareDatatypesPar(tps: Seq[SSymbol], datatypes: Seq[(SSymbol, Seq[Constructor])]) extends CommandExtension {
+  case class DeclareDatatypesPar(tps: Seq[SSymbol], datatypes: Seq[(DataTypeType, Seq[Constructor])]) extends CommandExtension {
     def print(ctx: PrintingContext): Unit = {
       ctx.print("(declare-datatypes ")
       ctx.printNary(tps, "(", " ", ") ")
-      ctx.printNary(datatypes, (datatype: (SSymbol, Seq[Constructor])) => {
+      ctx.printNary(datatypes, (datatype: (DataTypeType, Seq[Constructor])) => {
         ctx.print("(")
         ctx.print(datatype._1.name)
         if (datatype._2.nonEmpty) ctx.printNary(datatype._2, (constructor: Constructor) => {

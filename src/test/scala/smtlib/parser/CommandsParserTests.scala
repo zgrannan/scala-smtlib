@@ -327,7 +327,7 @@ class CommandsParserTests extends AnyFunSuite with TimeLimits {
     assert(parseUniqueCmd(
       "(declare-datatypes () ( (A (A1 (a1 Int) (a2 A)) (A2)) ))") ===
       DeclareDatatypes(Seq(
-        (SSymbol("A"), Seq(Constructor("A1", 
+        (DataTypeType(SSymbol("A"), None), Seq(Constructor("A1",
                             Seq((SSymbol("a1"), Sort("Int")), (SSymbol("a2"), Sort("A")))),
                            Constructor("A2", Seq())
                           ))
